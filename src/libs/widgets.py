@@ -251,6 +251,8 @@ class Dialog(ttk.Frame):
 
         self._setup_widgets()  # Метод установки виджетов
         self._bind_events()  # Метод привязки событий
+        
+        self._change_color()
    
     def _setup_widgets(self) -> None:
         """
