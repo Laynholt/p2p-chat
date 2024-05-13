@@ -301,8 +301,7 @@ class WinApp(TkinterDnD.Tk):
         """
         child_window = tkinter.Toplevel(self)
         child_window.title('Авторизация')
-        child_window.geometry('500x165')
-        child_window.minsize(500, 165)
+        child_window.geometry('500x190')
         child_window.resizable(False, False)
 
         try:
@@ -368,6 +367,8 @@ class WinApp(TkinterDnD.Tk):
                 self._logger.error('Перед продолжением необходимо ввести пароль от аккаунта!')
                 return
             
+            password = self._client_helper.extend_to_32_bytes(password)
+            
             if login not in registered_users:
                 wg.CustomMessageBox.show(child_window, 'Ошибка', f'Пользователь [{login}] не зарегистрирован!', wg.CustomMessageType.ERROR)
                 self._logger.error(f'Пользователь [{login}] не зарегистрирован!')
@@ -388,6 +389,7 @@ class WinApp(TkinterDnD.Tk):
 
             threading.Thread(target=self._use_local_ip_var.set, args=(self._client_info.use_local_ip ,), daemon=True).start()
             child_window.destroy()
+            self.deiconify()
 
         def _sign_up():
             nonlocal child_window
@@ -397,7 +399,7 @@ class WinApp(TkinterDnD.Tk):
         button_sign_in = ttk.Button(frame_buttons, text='Войти', width=25,
                                     command=lambda: _sign_in(
                                         combo_login.get(),
-                                        self._client_helper.extend_to_32_bytes(user_password_var.get())
+                                        user_password_var.get()
                                     ))
         button_sign_in.pack(padx=15, pady=15, side='left')
 
@@ -406,10 +408,6 @@ class WinApp(TkinterDnD.Tk):
 
         # Захват ввода для модального окна
         child_window.grab_set()
-
-        # Ограничение доступа к другим окнам до закрытия этого окна
-        child_window.wait_window()
-        self.deiconify()
 
     def _clear_alien_combobox(self):
         """
@@ -439,7 +437,7 @@ class WinApp(TkinterDnD.Tk):
 
         self.__child_window = tkinter.Toplevel(self)
         self.__child_window.title('Ввод пользовательской информации')
-        self.__child_window.geometry('500x600')
+        self.__child_window.geometry('500x690')
         self.__child_window.resizable(False, False)
 
         if first_initialization:
@@ -474,7 +472,9 @@ class WinApp(TkinterDnD.Tk):
         entry_id.pack(padx=15, pady=15, expand=True, fill='x', side='left')
         wg.Tooltip(entry_id, config.WIDGETS.DESCRIPTIONS.USER_ID)
 
+        registered_users = []
         if first_initialization:
+            registered_users = self._client_helper.get_all_registered_users()
             entry_id.configure(state='normal')
 
             frame_password = ttk.Frame(labelframe_account_settings)
@@ -562,25 +562,26 @@ class WinApp(TkinterDnD.Tk):
         label_dht_client_port.pack(padx=15, pady=15, side='left')
 
         self.__dht_client_port_var_temp = wg.PlaceholderVar(value=self._client_info.dht_client_port)
-        entry_dht_client_port = wg.PlaceholderEntry(frame_dht_client_port, placeholder=str(config.NETWORK.DHT_CLEINT_PORT), textvariable=self.__dht_client_port_var_temp)
+        entry_dht_client_port = wg.PlaceholderEntry(frame_dht_client_port, placeholder=str(config.NETWORK.DHT_CLIENT_PORT), textvariable=self.__dht_client_port_var_temp)
         entry_dht_client_port.pack(padx=15, pady=15, expand=True, fill='x', side='left')
         wg.Tooltip(entry_dht_client_port, config.WIDGETS.DESCRIPTIONS.DHT_CLIENT_PORT)
 
-        button = ttk.Button(frame_main, text='Продолжить', width=30, command=lambda: self.__apply_changes(first_initialization))
+        button = ttk.Button(frame_main, text='Продолжить', width=30, command=lambda: self.__apply_changes(registered_users, first_initialization))
         button.pack(padx=15, pady=10)
 
         # Захват ввода для модального окна
         self.__child_window.grab_set()
 
-        # Ограничение доступа к другим окнам до закрытия этого окна
-        self.__child_window.wait_window()
-        self.deiconify()
-
-    def __apply_changes(self, first_initialization: bool = False) -> None:        
+    def __apply_changes(self, registered_users: list[UserIdType], first_initialization: bool = False) -> None:        
         if first_initialization:
             if not self.__user_id_var_temp.get():
                 wg.CustomMessageBox.show(self.__child_window, 'Ошибка', 'Перед продолжением необходимо ввести свой ID!', wg.CustomMessageType.ERROR)
                 self._logger.error('Перед продолжением необходимо ввести свой айди!')
+                return
+            
+            if self.__user_id_var_temp.get() in registered_users:
+                wg.CustomMessageBox.show(self.__child_window, 'Ошибка', f'Пользователь с ID [{self.__user_id_var_temp.get()}] уже зарегистрирован!', wg.CustomMessageType.ERROR)
+                self._logger.error(f'Пользователь с ID [{self.__user_id_var_temp.get()}] уже зарегистрирован!')
                 return
 
             if not self.__user_password_var_temp.get():
@@ -669,8 +670,8 @@ class WinApp(TkinterDnD.Tk):
             return
         
         if not self._check_data_for_validity(self.__user_dht_key_var_temp.get()):
+            wg.CustomMessageBox.show(self.__child_window, 'Ошибка', f"В введенном DHT ключе есть недопустимые символы!", wg.CustomMessageType.ERROR)
             self._logger.error(f"В введенном DHT ключе есть недопустимые символы!")
-            wg.CustomMessageBox.show(self, 'Ошибка', f"В введенном DHT ключе есть недопустимые символы!", wg.CustomMessageType.ERROR)
             return
         
         if self._client_info.user_id == self.__user_id_var_temp.get() and \
@@ -683,6 +684,7 @@ class WinApp(TkinterDnD.Tk):
                                     self._use_local_ip_var.get() == self.__use_local_ip_var_temp.get():
             self._is_child_window_for_entering_user_info_active = False
             self.__child_window.destroy()
+            self.deiconify()
             return
 
         if first_initialization:
@@ -711,6 +713,7 @@ class WinApp(TkinterDnD.Tk):
         
         self._is_child_window_for_entering_user_info_active = False
         self.__child_window.destroy()
+        self.deiconify()
 
     def _change_account(self):
         """
@@ -726,7 +729,7 @@ class WinApp(TkinterDnD.Tk):
         wg.CustomMessageBox.show(self, 'Инфо', 'Подождите, идет загрузка аккаунта.', wg.CustomMessageType.INFO)
 
         self._last_user_id = self._client_info.user_id
-        self._client_helper.set_client_info(deepcopy(self._client_info))
+        self._client_helper.set_client_info(self._dialog_manager, deepcopy(self._client_info))
 
         try:
             self._client_helper.save_account()

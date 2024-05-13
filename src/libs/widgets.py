@@ -102,10 +102,10 @@ class _MessageBox(tk.Toplevel):
 
     def run(self, blocking: bool = False) -> None:
         self.create_widgets()
-
+        # Захват ввода для модального окна
+        self.grab_set()
+        
         if blocking:
-            # Захват ввода для модального окна
-            self.grab_set()
             # Ограничение доступа к другим окнам до закрытия этого окна
             self.wait_window()
 
@@ -245,6 +245,8 @@ class PlaceholderEntry(ttk.Entry):
             self.configure(foreground=self.default_fg_color)
         else:
             self.put_placeholder()
+
+        self._change_color()
 
     def put_placeholder(self):
         """Вставляет текст-подсказку в поле ввода и устанавливает цвет шрифта для подсказки."""
@@ -578,6 +580,7 @@ class Dialog(ttk.Frame):
 
         self._setup_widgets()  # Метод установки виджетов
         self._bind_events()  # Метод привязки событий
+        self._change_color()
    
     def _setup_widgets(self) -> None:
         """
